@@ -46,20 +46,14 @@ export default function Home() {
     if (!newItemName.trim() || !newItemPrice) return
     setMenuItems(prev => [...prev, { id: nextItemId, name: newItemName.trim(), price: parseFloat(newItemPrice) }])
     setNextItemId(prev => prev + 1)
-    setNewItemName('')
-    setNewItemPrice('')
+    setNewItemName(''); setNewItemPrice('')
   }
 
-  const removeMenuItem = (id: number) => {
-    setMenuItems(prev => prev.filter(i => i.id !== id))
-  }
+  const removeMenuItem = (id: number) => setMenuItems(prev => prev.filter(i => i.id !== id))
 
   const createClient = () => {
     if (!newName.trim()) return
-    const client: Client = {
-      id: nextClientId, name: newName.trim(), phone: newPhone.trim(),
-      total: 0, tables: [], partialPaid: 0, orders: []
-    }
+    const client: Client = { id: nextClientId, name: newName.trim(), phone: newPhone.trim(), total: 0, tables: [], partialPaid: 0, orders: [] }
     setClients(prev => [...prev, client])
     setNextClientId(prev => prev + 1)
     setNewName(''); setNewPhone('')
@@ -92,9 +86,7 @@ export default function Home() {
     setClients(prev => prev.map(c => {
       if (c.id !== client.id) return c
       const existing = c.orders.find(o => o.name === item.name)
-      const updatedOrders = existing
-        ? c.orders.map(o => o.name === item.name ? { ...o, qty: o.qty + 1 } : o)
-        : [...c.orders, { name: item.name, price: item.price, qty: 1 }]
+      const updatedOrders = existing ? c.orders.map(o => o.name === item.name ? { ...o, qty: o.qty + 1 } : o) : [...c.orders, { name: item.name, price: item.price, qty: 1 }]
       return { ...c, orders: updatedOrders, total: c.total + item.price }
     }))
   }
@@ -107,9 +99,7 @@ export default function Home() {
   const confirmFullPay = () => {
     if (!selectedClient) return
     alert(`✅ ${selectedClient.name} a payé ${selectedClient.total - selectedClient.partialPaid} DH\nMerci et à bientôt! 🎱`)
-    selectedClient.tables.forEach(tableId => {
-      setTableSessions(prev => { const u = { ...prev }; delete u[tableId]; return u })
-    })
+    selectedClient.tables.forEach(tableId => { setTableSessions(prev => { const u = { ...prev }; delete u[tableId]; return u }) })
     setClients(prev => prev.filter(c => c.id !== selectedClient.id))
     setPopup(null); setSelectedClient(null)
   }
@@ -124,175 +114,218 @@ export default function Home() {
 
   const splitTotal = splits.reduce((a, b) => a + (parseFloat(b.amount) || 0), 0)
   const remainingAfterSplit = selectedClient ? (selectedClient.total - selectedClient.partialPaid) - splitTotal : 0
+  const openTable = (tableId: number) => { if (tableSessions[tableId]) return; setSelectedTable(tableId); setPopup('assign') }
 
-  const openTable = (tableId: number) => {
-    if (tableSessions[tableId]) return
-    setSelectedTable(tableId); setPopup('assign')
-  }
+  const activeCount = Object.keys(tableSessions).length
+  const todayRevenue = clients.reduce((a, c) => a + c.partialPaid, 0)
+  const pending = clients.reduce((a, c) => a + (c.total - c.partialPaid), 0)
 
   const renderTable = (table: typeof initialTables[0]) => {
     const session = tableSessions[table.id]
     const client = session ? clients.find(c => c.id === session.clientId) : null
-    const borderColor = table.type === 'Pool' ? 'border-blue-400' : table.type === 'Snooker' ? 'border-purple-400' : 'border-yellow-400'
-    const hoverColor = table.type === 'Pool' ? 'hover:border-blue-400' : table.type === 'Snooker' ? 'hover:border-purple-400' : 'hover:border-yellow-400'
+    const accentColor = table.type === 'Pool' ? '#e8185a' : table.type === 'Snooker' ? '#a855f7' : '#f59e0b'
+
     return (
-      <div key={table.id}
-        className={`rounded-2xl p-4 border-2 transition-all ${session ? `bg-green-800 ${borderColor}` : `bg-gray-800 border-gray-600 cursor-pointer ${hoverColor}`}`}
-        onClick={() => !session && openTable(table.id)}
-      >
-        <div className="font-bold text-lg">{table.name}</div>
+      <div key={table.id} onClick={() => !session && openTable(table.id)}
+        style={{
+          background: session ? '#1a0d14' : '#13101e',
+          border: `1px solid ${session ? accentColor + '55' : '#ffffff18'}`,
+          borderRadius: '12px', padding: '14px', cursor: session ? 'default' : 'pointer',
+          position: 'relative', overflow: 'hidden', transition: 'all 0.2s'
+        }}>
+        {session && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: accentColor }} />}
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#ffffffcc', marginBottom: '8px' }}>{table.name}</div>
         {session && client ? (
           <>
-            <div className="text-sm text-green-300 mb-1">👤 {client.name}</div>
-            <div className="text-sm">🪙 Rounds: {session.rounds}</div>
-            <div className="text-sm font-bold text-yellow-300">💰 {session.total} DH</div>
-            {client.orders.length > 0 && (
-              <div className="text-xs text-orange-300 mt-1">🍔 {client.orders.map(o => `${o.name} x${o.qty}`).join(', ')}</div>
-            )}
-            <div className="flex gap-2 mt-3 flex-wrap">
-              <button onClick={(e) => { e.stopPropagation(); addRound(table.id) }} className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded-lg">+1 Round</button>
-              <button onClick={(e) => { e.stopPropagation(); setSelectedClient(client); setPopup('order') }} className="bg-orange-600 hover:bg-orange-500 text-white text-xs px-3 py-1 rounded-lg">🍔 Commande</button>
-              <button onClick={(e) => { e.stopPropagation(); closeTableSession(table.id) }} className="bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1 rounded-lg">Libérer</button>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'white', marginBottom: '2px' }}>{client.name}</div>
+            <div style={{ fontSize: '11px', color: '#ffffff88', marginBottom: '6px' }}>{session.rounds} rounds</div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: accentColor, marginBottom: '10px' }}>{session.total} DH</div>
+            {client.orders.length > 0 && <div style={{ fontSize: '11px', color: '#f59e0baa', marginBottom: '8px' }}>🍔 {client.orders.map(o => `${o.name} x${o.qty}`).join(', ')}</div>}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <button onClick={(e) => { e.stopPropagation(); addRound(table.id) }}
+                style={{ background: accentColor + '33', color: accentColor, border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>+1 Round</button>
+              <button onClick={(e) => { e.stopPropagation(); setSelectedClient(client); setPopup('order') }}
+                style={{ background: '#f59e0b33', color: '#f59e0b', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>🍔</button>
+              <button onClick={(e) => { e.stopPropagation(); closeTableSession(table.id) }}
+                style={{ background: '#ffffff11', color: '#ffffff88', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', cursor: 'pointer' }}>Libérer</button>
             </div>
           </>
         ) : (
-          <div className="text-red-400 mt-2">🔴 Vide</div>
+          <div style={{ fontSize: '12px', color: '#ffffff66', marginTop: '4px' }}>Disponible</div>
         )}
       </div>
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <h1 className="text-3xl font-bold text-center mb-1">🎱 Pool Manager</h1>
+  const inputStyle = { width: '100%', background: '#1e1a2e', color: 'white', border: '1px solid #ffffff22', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', outline: 'none' }
+  const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }
+  const modalStyle = { background: '#13101e', border: '1px solid #ffffff18', borderRadius: '16px', padding: '24px', width: '340px' }
+  const modalTitle = { fontSize: '16px', fontWeight: 600, color: 'white', marginBottom: '4px' }
+  const modalSub = { fontSize: '12px', color: '#ffffff66', marginBottom: '20px' }
 
-      {/* Nav */}
-      <div className="flex justify-center gap-4 mb-6">
-        <button onClick={() => setView('staff')} className={`px-6 py-2 rounded-lg font-semibold ${view === 'staff' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}>🎱 Staff</button>
-        <button onClick={() => setView('menu')} className={`px-6 py-2 rounded-lg font-semibold ${view === 'menu' ? 'bg-orange-600' : 'bg-gray-700 hover:bg-gray-600'}`}>🍔 Menu</button>
+  return (
+    <div style={{ minHeight: '100vh', background: '#0d0b14', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
+
+      {/* Topbar */}
+      <div style={{ background: '#0d0b14', borderBottom: '1px solid #ffffff11', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ background: '#e8185a', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', color: 'white' }}>AKA</div>
+          <div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: 'white' }}>AKA Pool Manager</div>
+            <div style={{ fontSize: '11px', color: '#ffffff66' }}>Tableau de bord</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '4px', background: '#ffffff11', padding: '4px', borderRadius: '10px' }}>
+          {(['staff', 'menu'] as const).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              style={{ padding: '6px 18px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, background: view === v ? '#e8185a' : 'transparent', color: view === v ? 'white' : '#ffffff88' }}>
+              {v === 'staff' ? '🎱 Staff' : '🍔 Menu'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* MENU VIEW */}
-      {view === 'menu' && (
-        <div className="max-w-lg mx-auto">
-          <h2 className="text-xl font-bold mb-4 text-orange-400">🍔 Gestion du Menu</h2>
-
-          {/* Add item */}
-          <div className="bg-gray-800 rounded-2xl p-4 border border-gray-600 mb-6">
-            <h3 className="font-semibold mb-3">Ajouter un article</h3>
-            <div className="flex gap-2 mb-3">
-              <input type="text" placeholder="Nom (ex: Coca Cola)" value={newItemName}
-                onChange={(e) => setNewItemName(e.target.value)}
-                className="flex-1 bg-gray-700 text-white rounded-lg px-3 py-2 outline-none text-sm" />
-              <input type="number" placeholder="Prix DH" value={newItemPrice}
-                onChange={(e) => setNewItemPrice(e.target.value)}
-                className="w-24 bg-gray-700 text-white rounded-lg px-3 py-2 outline-none text-sm" />
+      {/* Stats bar */}
+      {view === 'staff' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', background: '#ffffff11', borderBottom: '1px solid #ffffff11' }}>
+          {[
+            { label: 'Tables actives', val: `${activeCount}`, unit: `/ 11` },
+            { label: 'Clients actifs', val: `${clients.length}`, unit: '' },
+            { label: "Revenu aujourd'hui", val: `${todayRevenue}`, unit: 'DH' },
+            { label: 'En attente', val: `${pending}`, unit: 'DH' },
+          ].map((s, i) => (
+            <div key={i} style={{ background: '#0d0b14', padding: '16px 20px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 500, color: '#ffffff88', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>{s.label}</div>
+              <div style={{ fontSize: '22px', fontWeight: 600, color: 'white' }}>{s.val} <span style={{ fontSize: '12px', color: '#e8185a', fontWeight: 500 }}>{s.unit}</span></div>
             </div>
-            <button onClick={addMenuItem} className="w-full bg-orange-600 hover:bg-orange-500 py-2 rounded-lg font-semibold">
-              + Ajouter au menu
-            </button>
-          </div>
-
-          {/* Menu items */}
-          {menuItems.length === 0 ? (
-            <div className="text-center text-gray-500 py-12">
-              <div className="text-5xl mb-3">🍽️</div>
-              <p>Menu vide — ajoutez vos articles ci-dessus</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {menuItems.map(item => (
-                <div key={item.id} className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3 border border-gray-600">
-                  <div>
-                    <div className="font-semibold">{item.name}</div>
-                    <div className="text-yellow-300 text-sm">{item.price} DH</div>
-                  </div>
-                  <button onClick={() => removeMenuItem(item.id)} className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded-lg hover:bg-gray-700">
-                    🗑️ Supprimer
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
       )}
 
-      {/* STAFF VIEW */}
-      {view === 'staff' && (
-        <>
-          {clients.length > 0 && (
-            <div className="mb-8 bg-gray-800 rounded-2xl p-4 border border-gray-600">
-              <h2 className="text-lg font-bold mb-3">👥 Clients Actifs</h2>
-              <div className="flex flex-col gap-3">
-                {clients.map(client => {
-                  const remaining = client.total - client.partialPaid
-                  return (
-                    <div key={client.id} className="flex items-center justify-between bg-gray-700 rounded-xl px-4 py-3">
-                      <div>
-                        <div className="font-semibold">👤 {client.name}</div>
-                        <div className="text-xs text-gray-400">Tables: {client.tables.map(t => initialTables.find(tb => tb.id === t)?.name).join(', ') || 'Aucune'}</div>
-                        {client.orders.length > 0 && <div className="text-xs text-orange-300">🍔 {client.orders.map(o => `${o.name} x${o.qty}`).join(', ')}</div>}
-                        {client.partialPaid > 0 && <div className="text-xs text-green-400">✅ Déjà payé: {client.partialPaid} DH</div>}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className="text-yellow-300 font-bold text-lg">{remaining} DH</div>
-                          {client.partialPaid > 0 && <div className="text-xs text-gray-400">/ {client.total} DH</div>}
-                        </div>
-                        <button onClick={() => openPayPopup(client)} className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold">💰 Payer</button>
-                      </div>
-                    </div>
-                  )
-                })}
+      <div style={{ padding: '24px' }}>
+
+        {/* MENU VIEW */}
+        {view === 'menu' && (
+          <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#e8185a', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '16px' }}>Gestion du Menu</div>
+            <div style={{ background: '#13101e', border: '1px solid #ffffff18', borderRadius: '16px', padding: '20px', marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', color: '#ffffffaa', marginBottom: '14px', fontWeight: 500 }}>Ajouter un article</div>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                <input placeholder="Nom (ex: Coca Cola)" value={newItemName} onChange={e => setNewItemName(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+                <input type="number" placeholder="DH" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} style={{ ...inputStyle, width: '80px' }} />
               </div>
+              <button onClick={addMenuItem} style={{ width: '100%', background: '#e8185a', color: 'white', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ Ajouter</button>
             </div>
-          )}
+            {menuItems.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#ffffff44', padding: '40px 0' }}>
+                <div style={{ fontSize: '40px', marginBottom: '10px' }}>🍽️</div>
+                <div style={{ fontSize: '14px' }}>Menu vide — ajoutez vos articles</div>
+              </div>
+            ) : menuItems.map(item => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#13101e', border: '1px solid #ffffff18', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>{item.name}</div>
+                  <div style={{ fontSize: '12px', color: '#e8185a', marginTop: '2px', fontWeight: 500 }}>{item.price} DH</div>
+                </div>
+                <button onClick={() => removeMenuItem(item.id)} style={{ background: '#ff000018', color: '#ff6b6b', border: '1px solid #ff000033', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>Supprimer</button>
+              </div>
+            ))}
+          </div>
+        )}
 
-          <h2 className="text-xl font-semibold mb-4 text-blue-400">🎱 Tables Pool — 5 DH</h2>
-          <div className="grid grid-cols-4 gap-4 mb-8">{initialTables.filter(t => t.type === 'Pool').map(renderTable)}</div>
+        {/* STAFF VIEW */}
+        {view === 'staff' && (
+          <>
+            {clients.length > 0 && (
+              <div style={{ background: '#13101e', border: '1px solid #ffffff18', borderRadius: '16px', padding: '20px', marginBottom: '24px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#e8185a', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>Clients Actifs</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {clients.map(client => {
+                    const remaining = client.total - client.partialPaid
+                    return (
+                      <div key={client.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0d0b14', border: '1px solid #ffffff11', borderRadius: '10px', padding: '12px 16px' }}>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>{client.name}</div>
+                          <div style={{ fontSize: '11px', color: '#ffffff88', marginTop: '2px' }}>{client.tables.map(t => initialTables.find(tb => tb.id === t)?.name).join(' · ') || 'Aucune table'}</div>
+                          {client.orders.length > 0 && <div style={{ fontSize: '11px', color: '#f59e0baa', marginTop: '2px' }}>🍔 {client.orders.map(o => `${o.name} x${o.qty}`).join(', ')}</div>}
+                          {client.partialPaid > 0 && <div style={{ fontSize: '11px', color: '#4ade80aa', marginTop: '2px' }}>✅ Déjà payé: {client.partialPaid} DH</div>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '20px', fontWeight: 600, color: '#e8185a' }}>{remaining} DH</div>
+                            {client.partialPaid > 0 && <div style={{ fontSize: '11px', color: '#ffffff44' }}>/ {client.total} DH</div>}
+                          </div>
+                          <button onClick={() => openPayPopup(client)} style={{ background: '#e8185a', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Encaisser</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
-          <h2 className="text-xl font-semibold mb-4 text-purple-400">🎳 Snooker — 25 DH</h2>
-          <div className="grid grid-cols-3 gap-4 mb-8">{initialTables.filter(t => t.type === 'Snooker').map(renderTable)}</div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#e8185a', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#e8185a' }} />
+              Tables Pool — 5 DH / round
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '24px' }}>
+              {initialTables.filter(t => t.type === 'Pool').map(renderTable)}
+            </div>
 
-          <h2 className="text-xl font-semibold mb-4 text-yellow-400">👑 Royal Snooker — 40 DH</h2>
-          <div className="grid grid-cols-3 gap-4 mb-8">{initialTables.filter(t => t.type === 'Royal').map(renderTable)}</div>
-        </>
-      )}
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#a855f7' }} />
+              Snooker — 25 DH / round
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '24px' }}>
+              {initialTables.filter(t => t.type === 'Snooker').map(renderTable)}
+            </div>
+
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
+              Royal Snooker — 40 DH / round
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {initialTables.filter(t => t.type === 'Royal').map(renderTable)}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Assign Popup */}
       {popup === 'assign' && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-2xl p-6 w-80 border border-gray-600">
-            <h3 className="text-xl font-bold mb-4">👤 Assigner un Client</h3>
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <div style={modalTitle}>Assigner un client</div>
+            <div style={modalSub}>Choisissez ou créez un client</div>
             {clients.length > 0 && (
               <>
-                <p className="text-sm text-gray-400 mb-2">Clients existants:</p>
-                <div className="flex flex-col gap-2 mb-4">
-                  {clients.map(client => (
-                    <button key={client.id} onClick={() => assignClientToTable(client.id, selectedTable!)} className="bg-gray-700 hover:bg-gray-600 text-left px-4 py-2 rounded-lg text-sm">
-                      👤 {client.name} — {client.total - client.partialPaid} DH
-                    </button>
-                  ))}
-                </div>
-                <div className="border-t border-gray-600 my-4" />
+                {clients.map(client => (
+                  <button key={client.id} onClick={() => assignClientToTable(client.id, selectedTable!)}
+                    style={{ width: '100%', background: '#1e1a2e', border: '1px solid #ffffff18', borderRadius: '8px', padding: '10px 14px', color: 'white', textAlign: 'left', fontSize: '13px', cursor: 'pointer', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: 500 }}>
+                    <span>{client.name}</span>
+                    <span style={{ color: '#e8185a', fontWeight: 600 }}>{client.total - client.partialPaid} DH</span>
+                  </button>
+                ))}
+                <div style={{ height: '1px', background: '#ffffff11', margin: '14px 0' }} />
               </>
             )}
-            <button onClick={() => setPopup('newclient')} className="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded-lg font-semibold">+ Nouveau Client</button>
-            <button onClick={() => { setPopup(null); setSelectedTable(null) }} className="w-full mt-2 bg-gray-600 hover:bg-gray-500 py-2 rounded-lg">Annuler</button>
+            <button onClick={() => setPopup('newclient')} style={{ width: '100%', background: '#e8185a', color: 'white', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', marginBottom: '8px' }}>+ Nouveau Client</button>
+            <button onClick={() => { setPopup(null); setSelectedTable(null) }} style={{ width: '100%', background: '#ffffff11', color: '#ffffff88', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer' }}>Annuler</button>
           </div>
         </div>
       )}
 
       {/* New Client Popup */}
       {popup === 'newclient' && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-2xl p-6 w-80 border border-gray-600">
-            <h3 className="text-xl font-bold mb-4">➕ Nouveau Client</h3>
-            <input type="text" placeholder="Nom ou surnom..." value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 mb-3 outline-none" autoFocus />
-            <input type="text" placeholder="Téléphone (optionnel)..." value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 mb-4 outline-none" />
-            <div className="flex gap-3">
-              <button onClick={createClient} className="flex-1 bg-green-600 hover:bg-green-500 py-2 rounded-lg font-semibold">Créer ✅</button>
-              <button onClick={() => setPopup('assign')} className="flex-1 bg-gray-600 hover:bg-gray-500 py-2 rounded-lg">Retour</button>
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <div style={modalTitle}>Nouveau Client</div>
+            <div style={modalSub}>Entrez les informations du client</div>
+            <input placeholder="Nom ou surnom..." value={newName} onChange={e => setNewName(e.target.value)} style={{ ...inputStyle, marginBottom: '10px' }} autoFocus />
+            <input placeholder="Téléphone (optionnel)..." value={newPhone} onChange={e => setNewPhone(e.target.value)} style={{ ...inputStyle, marginBottom: '16px' }} />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={createClient} style={{ flex: 1, background: '#e8185a', color: 'white', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Créer ✅</button>
+              <button onClick={() => setPopup('assign')} style={{ flex: 1, background: '#ffffff11', color: '#ffffff88', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer' }}>Retour</button>
             </div>
           </div>
         </div>
@@ -300,83 +333,69 @@ export default function Home() {
 
       {/* Order Popup */}
       {popup === 'order' && selectedClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-2xl p-6 w-80 border border-gray-600">
-            <h3 className="text-xl font-bold mb-1">🍔 Commande</h3>
-            <p className="text-gray-400 text-sm mb-4">👤 {selectedClient.name}</p>
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <div style={modalTitle}>Commande</div>
+            <div style={modalSub}>👤 {selectedClient.name}</div>
             {menuItems.length === 0 ? (
-              <div className="text-center text-gray-500 py-6">
-                <p>Menu vide</p>
-                <p className="text-xs mt-1">Ajoutez des articles dans l'onglet Menu</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 mb-4">
-                {menuItems.map(item => (
-                  <button key={item.id}
-                    onClick={() => { addOrderToClient(selectedClient, item); setSelectedClient(clients.find(c => c.id === selectedClient.id) || selectedClient) }}
-                    className="flex justify-between items-center bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded-xl"
-                  >
-                    <span>{item.name}</span>
-                    <span className="text-yellow-300 font-semibold">+ {item.price} DH</span>
-                  </button>
-                ))}
-              </div>
-            )}
+              <div style={{ textAlign: 'center', color: '#ffffff44', padding: '20px 0', fontSize: '13px' }}>Menu vide — ajoutez des articles dans l'onglet Menu</div>
+            ) : menuItems.map(item => (
+              <button key={item.id} onClick={() => addOrderToClient(selectedClient, item)}
+                style={{ width: '100%', background: '#1e1a2e', border: '1px solid #ffffff18', borderRadius: '8px', padding: '12px 14px', color: 'white', cursor: 'pointer', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 500 }}>
+                <span>{item.name}</span>
+                <span style={{ color: '#f59e0b', fontWeight: 600 }}>+ {item.price} DH</span>
+              </button>
+            ))}
             {selectedClient.orders.length > 0 && (
-              <div className="bg-gray-700 rounded-xl p-3 mb-4">
-                <p className="text-sm font-semibold mb-2">Commandes actuelles:</p>
+              <div style={{ background: '#0d0b14', borderRadius: '8px', padding: '12px', marginTop: '10px', marginBottom: '12px' }}>
                 {selectedClient.orders.map((o, i) => (
-                  <div key={i} className="flex justify-between text-sm">
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#ffffffaa', marginBottom: '4px' }}>
                     <span>{o.name} x{o.qty}</span>
-                    <span className="text-yellow-300">{o.price * o.qty} DH</span>
+                    <span style={{ color: '#f59e0b', fontWeight: 600 }}>{o.price * o.qty} DH</span>
                   </div>
                 ))}
               </div>
             )}
-            <button onClick={() => setPopup(null)} className="w-full bg-gray-600 hover:bg-gray-500 py-2 rounded-lg">Fermer</button>
+            <button onClick={() => setPopup(null)} style={{ width: '100%', background: '#ffffff11', color: '#ffffff88', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer' }}>Fermer</button>
           </div>
         </div>
       )}
 
       {/* Pay Popup */}
       {popup === 'pay' && selectedClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-2xl p-6 w-96 border border-gray-600">
-            <h3 className="text-xl font-bold mb-1">💰 Paiement</h3>
-            <p className="text-gray-400 mb-4">👤 {selectedClient.name} — Reste: <span className="text-yellow-300 font-bold">{selectedClient.total - selectedClient.partialPaid} DH</span></p>
-            <div className="flex gap-3 mb-6">
-              <button onClick={() => setPayMode('full')} className={`flex-1 py-2 rounded-lg font-semibold ${payMode === 'full' ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'}`}>💰 Total</button>
-              <button onClick={() => setPayMode('split')} className={`flex-1 py-2 rounded-lg font-semibold ${payMode === 'split' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}>👥 Partiel</button>
+        <div style={overlayStyle}>
+          <div style={{ ...modalStyle, width: '380px' }}>
+            <div style={modalTitle}>Encaissement</div>
+            <div style={modalSub}>👤 {selectedClient.name} — Reste: <span style={{ color: '#e8185a', fontWeight: 600 }}>{selectedClient.total - selectedClient.partialPaid} DH</span></div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+              {(['full', 'split'] as const).map(m => (
+                <button key={m} onClick={() => setPayMode(m)}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600, background: payMode === m ? '#e8185a' : '#ffffff11', color: payMode === m ? 'white' : '#ffffff88' }}>
+                  {m === 'full' ? '💰 Paiement total' : '👥 Paiement partiel'}
+                </button>
+              ))}
             </div>
             {payMode === 'full' && (
-              <div className="text-center">
-                <div className="text-4xl font-bold text-yellow-300 mb-2">{selectedClient.total - selectedClient.partialPaid} DH</div>
-                <button onClick={confirmFullPay} className="w-full bg-green-600 hover:bg-green-500 py-3 rounded-lg font-bold text-lg">✅ Confirmer et fermer</button>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '36px', fontWeight: 600, color: '#e8185a', marginBottom: '20px' }}>{selectedClient.total - selectedClient.partialPaid} DH</div>
+                <button onClick={confirmFullPay} style={{ width: '100%', background: '#e8185a', color: 'white', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>✅ Confirmer et fermer</button>
               </div>
             )}
             {payMode === 'split' && (
               <div>
-                <p className="text-sm text-gray-400 mb-3">Un joueur paie sa part — le tab reste ouvert.</p>
-                <div className="flex flex-col gap-3 mb-4">
-                  {splits.map((split, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input type="text" placeholder={`Joueur ${i + 1}`} value={split.name}
-                        onChange={(e) => { const u = [...splits]; u[i].name = e.target.value; setSplits(u) }}
-                        className="flex-1 bg-gray-700 text-white rounded-lg px-3 py-2 outline-none text-sm" />
-                      <input type="number" placeholder="DH" value={split.amount}
-                        onChange={(e) => { const u = [...splits]; u[i].amount = e.target.value; setSplits(u) }}
-                        className="w-24 bg-gray-700 text-white rounded-lg px-3 py-2 outline-none text-sm" />
-                      <button onClick={() => confirmPartialPay(parseFloat(split.amount) || 0, split.name)} className="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-2 rounded-lg">Payer</button>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => setSplits([...splits, { name: '', amount: '' }])} className="w-full bg-gray-700 hover:bg-gray-600 py-2 rounded-lg text-sm">+ Ajouter un joueur</button>
-                <div className={`text-center font-bold text-sm mt-3 ${remainingAfterSplit >= 0 ? 'text-gray-400' : 'text-red-400'}`}>
-                  Reste sur le tab: {remainingAfterSplit} DH
-                </div>
+                <div style={{ fontSize: '12px', color: '#ffffff88', marginBottom: '12px' }}>Un joueur paie sa part — le tab reste ouvert</div>
+                {splits.map((split, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                    <input placeholder={`Joueur ${i + 1}`} value={split.name} onChange={e => { const u = [...splits]; u[i].name = e.target.value; setSplits(u) }} style={{ ...inputStyle, flex: 1, padding: '8px 12px' }} />
+                    <input type="number" placeholder="DH" value={split.amount} onChange={e => { const u = [...splits]; u[i].amount = e.target.value; setSplits(u) }} style={{ ...inputStyle, width: '70px', padding: '8px 12px' }} />
+                    <button onClick={() => confirmPartialPay(parseFloat(split.amount) || 0, split.name)} style={{ background: '#e8185a33', color: '#e8185a', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}>Payer</button>
+                  </div>
+                ))}
+                <button onClick={() => setSplits([...splits, { name: '', amount: '' }])} style={{ width: '100%', background: '#ffffff11', color: '#ffffff88', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', cursor: 'pointer', marginTop: '4px' }}>+ Ajouter un joueur</button>
+                <div style={{ textAlign: 'center', fontSize: '12px', color: remainingAfterSplit >= 0 ? '#ffffff66' : '#ff6b6b', marginTop: '10px', fontWeight: 500 }}>Reste sur le tab: {remainingAfterSplit} DH</div>
               </div>
             )}
-            <button onClick={() => setPopup(null)} className="w-full mt-4 bg-gray-700 hover:bg-gray-600 py-2 rounded-lg text-sm">Annuler</button>
+            <button onClick={() => setPopup(null)} style={{ width: '100%', background: '#ffffff11', color: '#ffffff88', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', marginTop: '12px' }}>Annuler</button>
           </div>
         </div>
       )}
